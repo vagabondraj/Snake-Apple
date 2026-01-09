@@ -7,7 +7,15 @@ class Game:
         pygame.init()
         self.surface = pygame.display.set_mode((700, 700))
         pygame.display.set_caption("Snake & Apple")
+
         self.snake = Snake(self.surface, 3)
+        self.apple = Apple(self.surface)
+    
+    def play(self):
+        self.snake.walk()
+        self.apple.draw()
+        self.snake.draw()
+        pygame.display.flip()
 
     def run(self):
         running = True
@@ -28,10 +36,29 @@ class Game:
                     running = False
 
             self.snake.walk()
+
+            # DRAW ORDER MATTERS
+            self.surface.fill((0, 0, 0))
             self.snake.draw()
+            self.apple.draw()
+
+            pygame.display.flip()
             pygame.time.delay(150)
 
         pygame.quit()
+
+
+class Apple:
+    def __init__(self, parent_screen):
+        self.parent_screen = parent_screen
+        self.image = pygame.image.load("./Resources/apple.jpg").convert()
+        self.image = pygame.transform.scale(self.image, (20, 20))
+
+        self.x = 100
+        self.y = 100
+
+    def draw(self):
+        self.parent_screen.blit(self.image, (self.x, self.y))
 
 
 class Snake:
@@ -41,7 +68,6 @@ class Snake:
 
         self.original_block = pygame.image.load("./Resources/block.jpg").convert()
         self.original_block = pygame.transform.scale(self.original_block, (20, 20))
-
         self.block = self.original_block
 
         self.x = [300 - i * 20 for i in range(length)]
@@ -50,10 +76,8 @@ class Snake:
         self.direction = "RIGHT"
 
     def draw(self):
-        self.parent_screen.fill((0, 0, 0))
         for i in range(self.length):
             self.parent_screen.blit(self.block, (self.x[i], self.y[i]))
-        pygame.display.flip()
 
     def move_up(self):
         if self.direction == "DOWN":
