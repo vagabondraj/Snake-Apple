@@ -1,4 +1,5 @@
 import pygame
+import time
 from pygame.locals import *
 
 
@@ -27,6 +28,9 @@ class Game:
                         self.snake.move_right()
                 elif event.type == QUIT:
                     running = False
+            self.snake.walk()
+            self.snake.draw()
+            time.sleep(0.2)
 
             pygame.time.delay(100)
 
@@ -76,6 +80,17 @@ class Snake:
         self.block = self.original_block
         self.x += 20
         self.draw()
+        
+    def walk(self):
+        if self.direction == "UP":
+            self.y -= 20
+        elif self.direction == "DOWN":
+            self.y += 20
+        elif self.direction == "LEFT":
+            self.x -= 20
+        elif self.direction == "RIGHT":
+            self.x += 20
+
 
 
 if __name__ == "__main__":
