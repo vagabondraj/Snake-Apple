@@ -1,5 +1,4 @@
 import pygame
-import time
 from pygame.locals import *
 
 
@@ -8,8 +7,7 @@ class Game:
         pygame.init()
         self.surface = pygame.display.set_mode((700, 700))
         pygame.display.set_caption("Snake & Apple")
-        self.snake = Snake(self.surface)
-        self.snake.draw()
+        self.snake = Snake(self.surface, 3)
 
     def run(self):
         running = True
@@ -28,69 +26,72 @@ class Game:
                         self.snake.move_right()
                 elif event.type == QUIT:
                     running = False
+
             self.snake.walk()
             self.snake.draw()
-            time.sleep(0.2)
-
-            pygame.time.delay(100)
+            pygame.time.delay(150)
 
         pygame.quit()
 
 
 class Snake:
-    def __init__(self, parent_screen):
+    def __init__(self, parent_screen, length):
         self.parent_screen = parent_screen
+        self.length = length
 
-        # Load and scale base image
         self.original_block = pygame.image.load("./Resources/block.jpg").convert()
         self.original_block = pygame.transform.scale(self.original_block, (20, 20))
 
-        # Current displayed block
         self.block = self.original_block
 
-        self.x = 300
-        self.y = 300
+        self.x = [300 - i * 20 for i in range(length)]
+        self.y = [300] * length
+
         self.direction = "RIGHT"
 
     def draw(self):
         self.parent_screen.fill((0, 0, 0))
-        self.parent_screen.blit(self.block, (self.x, self.y))
+        for i in range(self.length):
+            self.parent_screen.blit(self.block, (self.x[i], self.y[i]))
         pygame.display.flip()
 
     def move_up(self):
+        if self.direction == "DOWN":
+            return
         self.direction = "UP"
         self.block = pygame.transform.rotate(self.original_block, 90)
-        self.y -= 20
-        self.draw()
 
     def move_down(self):
+        if self.direction == "UP":
+            return
         self.direction = "DOWN"
         self.block = pygame.transform.rotate(self.original_block, -90)
-        self.y += 20
-        self.draw()
 
     def move_left(self):
+        if self.direction == "RIGHT":
+            return
         self.direction = "LEFT"
         self.block = pygame.transform.rotate(self.original_block, 180)
-        self.x -= 20
-        self.draw()
 
     def move_right(self):
+        if self.direction == "LEFT":
+            return
         self.direction = "RIGHT"
         self.block = self.original_block
-        self.x += 20
-        self.draw()
-        
-    def walk(self):
-        if self.direction == "UP":
-            self.y -= 20
-        elif self.direction == "DOWN":
-            self.y += 20
-        elif self.direction == "LEFT":
-            self.x -= 20
-        elif self.direction == "RIGHT":
-            self.x += 20
 
+    def walk(self):
+        for i in range(self.length - 1, 0, -1):
+            self.x[i] = self.x[i - 1]
+            self.y[i] = self.y[i - 1]
+
+        if self.direction == "UP":
+            self.y[0] -= 20
+        elif self.direction == "DOWN":
+            self.y[0] += 20
+        elif self.direction == "LEFT":
+            self.x[0] -= 20
+        elif self.direction == "RIGHT":
+            self.x[0] += 20
 
 
 if __name__ == "__main__":
