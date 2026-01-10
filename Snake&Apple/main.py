@@ -6,13 +6,27 @@ import os
 # ===================== CONSTANTS =====================
 SCREEN_SIZE = 600
 BLOCK_SIZE = 20
-UI_HEIGHT = 40
+UI_HEIGHT = 50   # bottom panel height
 
 GRID_WIDTH = SCREEN_SIZE // BLOCK_SIZE
 GRID_HEIGHT = (SCREEN_SIZE - UI_HEIGHT) // BLOCK_SIZE
 
-GAME_SPEED = 100
+DIFFICULTY = {
+    "Easy": 160,
+    "Medium": 120,
+    "Hard": 80,
+    "Hardcore": 50
+}
+
 HIGH_SCORE_FILE = "highscore.txt"
+
+# COLORS
+WHITE = (255, 255, 255)
+GRAY = (190, 190, 190)
+DARK = (20, 20, 20)
+RED = (255, 80, 80)
+GREEN = (0, 220, 0)
+YELLOW = (255, 255, 0)
 
 # ===================== GAME CLASS =====================
 class Game:
@@ -23,9 +37,8 @@ class Game:
         self.surface = pygame.display.set_mode((SCREEN_SIZE, SCREEN_SIZE))
         pygame.display.set_caption("Snake & Apple")
 
-        # Fonts
-        self.font = pygame.font.SysFont("arial", 26)
-        self.big_font = pygame.font.SysFont("arial", 48)
+        self.font = pygame.font.SysFont("arial", 20)
+        self.big_font = pygame.font.SysFont("arial", 44)
 
         # Background
         self.background = pygame.image.load("Resources/background.jpg").convert()
@@ -34,20 +47,22 @@ class Game:
         )
 
         # Audio
-        self.volume = 0.5
         self.muted = False
-
         pygame.mixer.music.load("Resources/BGM.mp3")
-        pygame.mixer.music.set_volume(self.volume)
-        pygame.mixer.music.play(-1)   # play once, loop forever
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)
 
         self.eat_sound = pygame.mixer.Sound("Resources/Eat.mp3")
         self.crash_sound = pygame.mixer.Sound("Resources/Crash.mp3")
-        self.eat_sound.set_volume(self.volume)
-        self.crash_sound.set_volume(self.volume)
 
-        # Game state
+        # Difficulty
+        self.level_names = list(DIFFICULTY.keys())
+        self.level_index = 1
+        self.speed = DIFFICULTY[self.level_names[self.level_index]]
+
         self.high_score = self.load_high_score()
+        self.show_start_screen = True
+
         self.reset_game()
 
     # ================= HIGH SCORE =================
@@ -70,32 +85,72 @@ class Game:
         self.game_over = False
 
     # ================= UI =================
+    def draw_bottom_panel(self):
+        panel = pygame.Surface((SCREEN_SIZE, UI_HEIGHT))
+        panel.fill(DARK)
+        self.surface.blit(panel, (0, SCREEN_SIZE - UI_HEIGHT))
+
     def draw_ui(self):
         score = self.snake.length - 3
+        level = self.level_names[self.level_index]
 
-        s1 = self.font.render(f"Score: {score}", True, (255, 255, 255))
-        s2 = self.font.render(f"High: {self.high_score}", True, (255, 215, 0))
-        s3 = self.font.render(f"Vol: {int(self.volume*100)}%", True, (200, 200, 200))
+        texts = [
+            f"Score: {score}",
+            f"High: {self.high_score}",
+            f"Level: {level}",
+            "P:Pause  R:Restart  M:Mute  1-4:Level"
+        ]
 
-        self.surface.blit(s1, (10, 5))
-        self.surface.blit(s2, (10, 25))
-        self.surface.blit(s3, (540, 5))
+        x_positions = [10, 140, 280, 10]
+
+        for i, text in enumerate(texts):
+            y = SCREEN_SIZE - UI_HEIGHT + (5 if i < 3 else 28)
+            self.surface.blit(
+                self.font.render(text, True, WHITE if i < 3 else GRAY),
+                (x_positions[i], y)
+            )
+
+    def start_screen(self):
+        self.surface.blit(self.background, (0, 0))
+        title = self.big_font.render("SNAKE & APPLE", True, GREEN)
+        info = self.font.render("Press ENTER to Start", True, WHITE)
+        hint = self.font.render("1-4 Difficulty | M Mute | P Pause", True, GRAY)
+
+        self.surface.blit(title, title.get_rect(center=(SCREEN_SIZE//2, 240)))
+        self.surface.blit(info, info.get_rect(center=(SCREEN_SIZE//2, 300)))
+        self.surface.blit(hint, hint.get_rect(center=(SCREEN_SIZE//2, 340)))
+        pygame.display.flip()
 
     def draw_pause(self):
-        t = self.big_font.render("PAUSED", True, (255, 255, 0))
-        self.surface.blit(t, t.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2)))
+        overlay = pygame.Surface((SCREEN_SIZE, SCREEN_SIZE))
+        overlay.set_alpha(160)
+        overlay.fill((0, 0, 0))
+        self.surface.blit(overlay, (0, 0))
+
+        text = self.big_font.render("PAUSED", True, YELLOW)
+        hint = self.font.render("Press P to Resume", True, GRAY)
+
+        self.surface.blit(text, text.get_rect(center=(SCREEN_SIZE//2, 260)))
+        self.surface.blit(hint, hint.get_rect(center=(SCREEN_SIZE//2, 300)))
 
     def draw_game_over(self):
-        t1 = self.big_font.render("GAME OVER", True, (255, 0, 0))
-        t2 = self.font.render("R - Restart | ESC - Quit", True, (220, 220, 220))
+        overlay = pygame.Surface((SCREEN_SIZE, SCREEN_SIZE))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))
+        self.surface.blit(overlay, (0, 0))
 
-        self.surface.blit(t1, t1.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 - 25)))
-        self.surface.blit(t2, t2.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 + 25)))
+        title = self.big_font.render("GAME OVER", True, RED)
+        score = self.font.render(f"Score: {self.snake.length - 3}", True, WHITE)
+        restart = self.font.render("R - Restart | ESC - Quit", True, GRAY)
+
+        self.surface.blit(title, title.get_rect(center=(SCREEN_SIZE//2, 250)))
+        self.surface.blit(score, score.get_rect(center=(SCREEN_SIZE//2, 300)))
+        self.surface.blit(restart, restart.get_rect(center=(SCREEN_SIZE//2, 340)))
 
     # ================= LOGIC =================
     def wall_collision(self):
         x, y = self.snake.x[0], self.snake.y[0]
-        return x < 0 or x >= SCREEN_SIZE or y < UI_HEIGHT or y >= SCREEN_SIZE
+        return x < 0 or x >= SCREEN_SIZE or y < 0 or y >= SCREEN_SIZE - UI_HEIGHT
 
     def update_high_score(self):
         score = self.snake.length - 3
@@ -107,6 +162,16 @@ class Game:
     def run(self):
         running = True
         while running:
+
+            if self.show_start_screen:
+                self.start_screen()
+                for event in pygame.event.get():
+                    if event.type == QUIT:
+                        running = False
+                    if event.type == KEYDOWN and event.key == K_RETURN:
+                        self.show_start_screen = False
+                continue
+
             for event in pygame.event.get():
                 if event.type == QUIT:
                     running = False
@@ -121,22 +186,16 @@ class Game:
                     if event.key == K_p:
                         self.paused = not self.paused
 
+                    if event.key in [K_1, K_2, K_3, K_4]:
+                        self.level_index = int(event.unicode) - 1
+                        self.speed = DIFFICULTY[self.level_names[self.level_index]]
+
                     if event.key == K_m:
                         self.muted = not self.muted
-                        vol = 0 if self.muted else self.volume
+                        vol = 0 if self.muted else 0.5
                         pygame.mixer.music.set_volume(vol)
                         self.eat_sound.set_volume(vol)
                         self.crash_sound.set_volume(vol)
-
-                    if event.key == K_LEFTBRACKET:
-                        self.volume = max(0, self.volume - 0.05)
-                    if event.key == K_RIGHTBRACKET:
-                        self.volume = min(1, self.volume + 0.05)
-
-                    vol = 0 if self.muted else self.volume
-                    pygame.mixer.music.set_volume(vol)
-                    self.eat_sound.set_volume(vol)
-                    self.crash_sound.set_volume(vol)
 
                     if not self.paused and not self.game_over:
                         if event.key == K_UP:
@@ -151,29 +210,27 @@ class Game:
             if not self.paused and not self.game_over:
                 self.snake.walk()
 
-                # Eat apple (NO BGM restart)
                 if self.snake.x[0] == self.apple.x and self.snake.y[0] == self.apple.y:
                     self.eat_sound.play()
                     self.snake.increase_length()
                     self.apple.move()
 
-                # Wall collision
                 if self.wall_collision():
                     self.crash_sound.play()
                     self.game_over = True
                     self.update_high_score()
 
-                # Self collision
                 for i in range(1, self.snake.length):
                     if self.snake.x[0] == self.snake.x[i] and self.snake.y[0] == self.snake.y[i]:
                         self.crash_sound.play()
                         self.game_over = True
                         self.update_high_score()
 
-            # DRAW
             self.surface.blit(self.background, (0, 0))
             self.snake.draw(self.surface)
             self.apple.draw(self.surface)
+
+            self.draw_bottom_panel()
             self.draw_ui()
 
             if self.paused:
@@ -182,7 +239,7 @@ class Game:
                 self.draw_game_over()
 
             pygame.display.flip()
-            pygame.time.delay(GAME_SPEED)
+            pygame.time.delay(self.speed)
 
         pygame.quit()
 
@@ -197,8 +254,8 @@ class Apple:
         surface.blit(self.image, (self.x, self.y))
 
     def move(self):
-        self.x = random.randint(0, GRID_WIDTH-1) * BLOCK_SIZE
-        self.y = random.randint(0, GRID_HEIGHT-1) * BLOCK_SIZE + UI_HEIGHT
+        self.x = random.randint(0, GRID_WIDTH - 1) * BLOCK_SIZE
+        self.y = random.randint(0, GRID_HEIGHT - 1) * BLOCK_SIZE
 
 # ===================== SNAKE =====================
 class Snake:
@@ -206,8 +263,8 @@ class Snake:
         self.length = length
         self.image = pygame.image.load("Resources/block.jpg").convert()
         self.image = pygame.transform.scale(self.image, (BLOCK_SIZE, BLOCK_SIZE))
-        self.x = [300 - i*BLOCK_SIZE for i in range(length)]
-        self.y = [300]*length
+        self.x = [300 - i * BLOCK_SIZE for i in range(length)]
+        self.y = [300] * length
         self.direction = "RIGHT"
 
     def draw(self, surface):
@@ -220,26 +277,34 @@ class Snake:
         self.y.append(self.y[-1])
 
     def move_up(self):
-        if self.direction != "DOWN": self.direction = "UP"
+        if self.direction != "DOWN":
+            self.direction = "UP"
 
     def move_down(self):
-        if self.direction != "UP": self.direction = "DOWN"
+        if self.direction != "UP":
+            self.direction = "DOWN"
 
     def move_left(self):
-        if self.direction != "RIGHT": self.direction = "LEFT"
+        if self.direction != "RIGHT":
+            self.direction = "LEFT"
 
     def move_right(self):
-        if self.direction != "LEFT": self.direction = "RIGHT"
+        if self.direction != "LEFT":
+            self.direction = "RIGHT"
 
     def walk(self):
-        for i in range(self.length-1, 0, -1):
-            self.x[i] = self.x[i-1]
-            self.y[i] = self.y[i-1]
+        for i in range(self.length - 1, 0, -1):
+            self.x[i] = self.x[i - 1]
+            self.y[i] = self.y[i - 1]
 
-        if self.direction == "UP": self.y[0] -= BLOCK_SIZE
-        if self.direction == "DOWN": self.y[0] += BLOCK_SIZE
-        if self.direction == "LEFT": self.x[0] -= BLOCK_SIZE
-        if self.direction == "RIGHT": self.x[0] += BLOCK_SIZE
+        if self.direction == "UP":
+            self.y[0] -= BLOCK_SIZE
+        elif self.direction == "DOWN":
+            self.y[0] += BLOCK_SIZE
+        elif self.direction == "LEFT":
+            self.x[0] -= BLOCK_SIZE
+        elif self.direction == "RIGHT":
+            self.x[0] += BLOCK_SIZE
 
 # ===================== MAIN =====================
 if __name__ == "__main__":
