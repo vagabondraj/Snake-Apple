@@ -5,8 +5,12 @@ import random
 # ===================== CONSTANTS =====================
 SCREEN_SIZE = 700
 BLOCK_SIZE = 20
-GRID_SIZE = SCREEN_SIZE // BLOCK_SIZE
-GAME_SPEED = 150
+UI_HEIGHT = 40
+
+GRID_WIDTH = SCREEN_SIZE // BLOCK_SIZE
+GRID_HEIGHT = (SCREEN_SIZE - UI_HEIGHT) // BLOCK_SIZE
+
+GAME_SPEED = 100
 
 # ===================== GAME CLASS =====================
 class Game:
@@ -15,11 +19,21 @@ class Game:
         self.surface = pygame.display.set_mode((SCREEN_SIZE, SCREEN_SIZE))
         pygame.display.set_caption("Snake & Apple")
 
+        self.font = pygame.font.SysFont("arial", 30)
+
         self.snake = Snake(self.surface, 3)
         self.apple = Apple(self.surface)
 
     def is_collision(self, x1, y1, x2, y2):
         return x1 == x2 and y1 == y2
+
+    def score_display(self):
+        score = self.font.render(
+            f"Score: {self.snake.length - 3}",
+            True,
+            (255, 255, 255)
+        )
+        self.surface.blit(score, (10, 5))
 
     def run(self):
         running = True
@@ -42,7 +56,7 @@ class Game:
             # Move snake
             self.snake.walk()
 
-            # Collision with apple
+            # Check apple collision
             if self.is_collision(
                 self.snake.x[0], self.snake.y[0],
                 self.apple.x, self.apple.y
@@ -54,6 +68,7 @@ class Game:
             self.surface.fill((0, 0, 0))
             self.snake.draw()
             self.apple.draw()
+            self.score_display()
             pygame.display.flip()
 
             pygame.time.delay(GAME_SPEED)
@@ -74,8 +89,8 @@ class Apple:
         self.parent_screen.blit(self.image, (self.x, self.y))
 
     def move(self):
-        self.x = random.randint(0, GRID_SIZE - 1) * BLOCK_SIZE
-        self.y = random.randint(0, GRID_SIZE - 1) * BLOCK_SIZE
+        self.x = random.randint(0, GRID_WIDTH - 1) * BLOCK_SIZE
+        self.y = random.randint(0, GRID_HEIGHT - 1) * BLOCK_SIZE + UI_HEIGHT
 
 # ===================== SNAKE CLASS =====================
 class Snake:
