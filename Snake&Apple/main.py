@@ -22,8 +22,13 @@ class Game:
         self.font = pygame.font.SysFont("arial", 30)
         self.game_over_font = pygame.font.SysFont("arial", 50)
 
+        self.reset_game()
+
+    def reset_game(self):
         self.snake = Snake(self.surface, 3)
         self.apple = Apple(self.surface)
+        self.paused = False
+        self.game_over_flag = False
 
     def score_display(self):
         score = self.font.render(
@@ -33,62 +38,87 @@ class Game:
         )
         self.surface.blit(score, (10, 5))
 
-    def game_over(self):
-        self.surface.fill((0, 0, 0))
+    def pause_display(self):
+        text = self.game_over_font.render("PAUSED", True, (255, 255, 0))
+        rect = text.get_rect(center=(SCREEN_SIZE // 2, SCREEN_SIZE // 2))
+        self.surface.blit(text, rect)
 
+    def game_over_screen(self):
         title = self.game_over_font.render("GAME OVER", True, (255, 0, 0))
         score = self.font.render(
             f"Your Score: {self.snake.length - 3}",
             True,
             (255, 255, 255)
         )
+        restart = self.font.render(
+            "Press R to Restart | ESC to Quit",
+            True,
+            (200, 200, 200)
+        )
 
-        title_rect = title.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 - 30))
-        score_rect = score.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 + 20))
+        title_rect = title.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 - 40))
+        score_rect = score.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2))
+        restart_rect = restart.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 + 40))
 
         self.surface.blit(title, title_rect)
         self.surface.blit(score, score_rect)
-        pygame.display.flip()
-        pygame.time.delay(2000)
+        self.surface.blit(restart, restart_rect)
 
     def run(self):
         running = True
         while running:
             for event in pygame.event.get():
+                if event.type == QUIT:
+                    running = False
+
                 if event.type == KEYDOWN:
                     if event.key == K_ESCAPE:
                         running = False
-                    elif event.key == K_UP:
-                        self.snake.move_up()
-                    elif event.key == K_DOWN:
-                        self.snake.move_down()
-                    elif event.key == K_LEFT:
-                        self.snake.move_left()
-                    elif event.key == K_RIGHT:
-                        self.snake.move_right()
-                elif event.type == QUIT:
-                    running = False
 
-            self.snake.walk()
+                    if self.game_over_flag:
+                        if event.key == K_r:
+                            self.reset_game()
+                        continue
 
-            # 🍎 Apple collision
-            if self.snake.x[0] == self.apple.x and self.snake.y[0] == self.apple.y:
-                self.snake.increase_length()
-                self.apple.move()
+                    if event.key == K_p:
+                        self.paused = not self.paused
 
-            # 💥 SELF COLLISION
-            for i in range(1, self.snake.length):
-                if self.snake.x[0] == self.snake.x[i] and self.snake.y[0] == self.snake.y[i]:
-                    self.game_over()
-                    return
+                    if not self.paused:
+                        if event.key == K_UP:
+                            self.snake.move_up()
+                        elif event.key == K_DOWN:
+                            self.snake.move_down()
+                        elif event.key == K_LEFT:
+                            self.snake.move_left()
+                        elif event.key == K_RIGHT:
+                            self.snake.move_right()
+
+            if not self.paused and not self.game_over_flag:
+                self.snake.walk()
+
+                # 🍎 Apple collision
+                if self.snake.x[0] == self.apple.x and self.snake.y[0] == self.apple.y:
+                    self.snake.increase_length()
+                    self.apple.move()
+
+                # 💥 Self collision
+                for i in range(1, self.snake.length):
+                    if self.snake.x[0] == self.snake.x[i] and self.snake.y[0] == self.snake.y[i]:
+                        self.game_over_flag = True
 
             # DRAW
             self.surface.fill((0, 0, 0))
             self.snake.draw()
             self.apple.draw()
             self.score_display()
-            pygame.display.flip()
 
+            if self.paused and not self.game_over_flag:
+                self.pause_display()
+
+            if self.game_over_flag:
+                self.game_over_screen()
+
+            pygame.display.flip()
             pygame.time.delay(GAME_SPEED)
 
         pygame.quit()
