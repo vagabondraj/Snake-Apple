@@ -20,12 +20,10 @@ class Game:
         pygame.display.set_caption("Snake & Apple")
 
         self.font = pygame.font.SysFont("arial", 30)
+        self.game_over_font = pygame.font.SysFont("arial", 50)
 
         self.snake = Snake(self.surface, 3)
         self.apple = Apple(self.surface)
-
-    def is_collision(self, x1, y1, x2, y2):
-        return x1 == x2 and y1 == y2
 
     def score_display(self):
         score = self.font.render(
@@ -34,6 +32,24 @@ class Game:
             (255, 255, 255)
         )
         self.surface.blit(score, (10, 5))
+
+    def game_over(self):
+        self.surface.fill((0, 0, 0))
+
+        title = self.game_over_font.render("GAME OVER", True, (255, 0, 0))
+        score = self.font.render(
+            f"Your Score: {self.snake.length - 3}",
+            True,
+            (255, 255, 255)
+        )
+
+        title_rect = title.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 - 30))
+        score_rect = score.get_rect(center=(SCREEN_SIZE//2, SCREEN_SIZE//2 + 20))
+
+        self.surface.blit(title, title_rect)
+        self.surface.blit(score, score_rect)
+        pygame.display.flip()
+        pygame.time.delay(2000)
 
     def run(self):
         running = True
@@ -53,18 +69,20 @@ class Game:
                 elif event.type == QUIT:
                     running = False
 
-            # Move snake
             self.snake.walk()
 
-            # Check apple collision
-            if self.is_collision(
-                self.snake.x[0], self.snake.y[0],
-                self.apple.x, self.apple.y
-            ):
+            # 🍎 Apple collision
+            if self.snake.x[0] == self.apple.x and self.snake.y[0] == self.apple.y:
                 self.snake.increase_length()
                 self.apple.move()
 
-            # Draw everything
+            # 💥 SELF COLLISION
+            for i in range(1, self.snake.length):
+                if self.snake.x[0] == self.snake.x[i] and self.snake.y[0] == self.snake.y[i]:
+                    self.game_over()
+                    return
+
+            # DRAW
             self.surface.fill((0, 0, 0))
             self.snake.draw()
             self.apple.draw()
