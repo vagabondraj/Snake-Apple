@@ -17,6 +17,8 @@ DIFFICULTY = {
     "Hard": 80,
     "Hardcore": 50
 }
+SPECIAL_APPLE_LIFETIME = 3000  # milliseconds (3 seconds)
+
 
 HIGH_SCORE_FILE = "highscore.txt"
 
@@ -63,6 +65,10 @@ class Game:
         self.high_score = self.load_high_score()
         self.show_start_screen = True
 
+        self.apples_eaten = 0
+        self.next_special_at = random.randint(10, 15)
+        self.special_apple = SpecialApple()
+        
         self.reset_game()
 
     # ================= HIGH SCORE =================
@@ -83,6 +89,12 @@ class Game:
         self.apple = Apple()
         self.paused = False
         self.game_over = False
+
+        self.apples_eaten = 0
+        self.next_special_at = random.randint(10, 15)
+        self.special_apple.active = False
+        self.special_apple.spawn_time = 0
+
 
     # ================= UI =================
     def draw_bottom_panel(self):
@@ -210,10 +222,36 @@ class Game:
             if not self.paused and not self.game_over:
                 self.snake.walk()
 
+                if self.special_apple.active:
+                    if pygame.time.get_ticks() - self.special_apple.spawn_time >= SPECIAL_APPLE_LIFETIME:
+                        self.special_apple.active = False
+                        self.apples_eaten = 0
+                        self.next_special_at = random.randint(10, 15)
+                    
+                    # normal apple
                 if self.snake.x[0] == self.apple.x and self.snake.y[0] == self.apple.y:
                     self.eat_sound.play()
                     self.snake.increase_length()
                     self.apple.move()
+                    
+                    # ================= special apple logic =================
+                    self.apples_eaten += 1
+                    if self.apples_eaten >= self.next_special_at and not self.special_apple.active:
+                        self.special_apple.spawn()
+                        
+                if self.special_apple.active and \
+                    self.snake.x[0] == self.special_apple.x and \
+                    self.snake.y[0] == self.special_apple.y:
+
+                        if self.snake.length >= 8:
+                            self.snake.reduce_length(5)
+                        else:
+                            self.snake.reset_length()
+
+                        self.special_apple.active = False
+                        self.apples_eaten = 0
+                        self.next_special_at = random.randint(10, 15)
+
 
                 if self.wall_collision():
                     self.crash_sound.play()
@@ -229,6 +267,12 @@ class Game:
             self.surface.blit(self.background, (0, 0))
             self.snake.draw(self.surface)
             self.apple.draw(self.surface)
+            
+            # draw special apple
+            if self.special_apple.active:
+                self.surface.blit(
+                    self.special_apple.image, 
+                    (self.special_apple.x, self.special_apple.y))
 
             self.draw_bottom_panel()
             self.draw_ui()
@@ -242,7 +286,25 @@ class Game:
             pygame.time.delay(self.speed)
 
         pygame.quit()
-
+        
+# ===================== special apple =====================        
+class SpecialApple:
+    def __init__(self):
+        self.image = pygame.image.load("Resources/special_apple.jpg").convert()
+        self.image = pygame.transform.scale(self.image, (BLOCK_SIZE, BLOCK_SIZE))
+        self.active = False
+        self.x = 0
+        self.y = 0
+        
+        self.span_time = 0
+        
+    def spawn(self):
+        self.x = random.randint(0, GRID_WIDTH - 1) * BLOCK_SIZE
+        self.y = random.randint(0, GRID_HEIGHT - 1) * BLOCK_SIZE
+        self.active = True
+        self.spawn_time = pygame.time.get_ticks()
+        
+        
 # ===================== APPLE =====================
 class Apple:
     def __init__(self):
@@ -275,6 +337,17 @@ class Snake:
         self.length += 1
         self.x.append(self.x[-1])
         self.y.append(self.y[-1])
+        
+    def reduce_length(self, amount):
+        self.length = max(3, self.length - amount)
+        self.x = self.x[:self.length]
+        self.y = self.y[:self.length]
+    
+    
+    def reset_length(self):
+        self.length = 3
+        self.x = self.x[:self.length]
+        self.y = self.y[:self.length]
 
     def move_up(self):
         if self.direction != "DOWN":
